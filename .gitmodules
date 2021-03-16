@@ -1,0 +1,3 @@
+[submodule "sightpy"]
+	path = sightpy
+	url = git@github.com:lmondada/Python-Raytracer.git
