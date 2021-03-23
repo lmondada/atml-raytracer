@@ -8,7 +8,17 @@ We hope to use to adapt the approach in [1] to learn a surogate
 ray tracer.
 
 ## Generating dataset from ray tracer
-Todo `@Tiffany`.
+To do this, we need to track the path of each ray.
+Intermediate 'Z' states are the ray positions and colors at (at each point they bounce).
+For now, we can vary properties of diffuse and refractive materials (this is what theta will encode).
+
+Ray tracing works by presupposing that the rays hit the camera, and traces them backwards to a certain depth.
+For our purposes, we need to collect the probability that a ray emitted from the light source reaches the point on the camera with a certain colour.
+Treating each ray as independent, we can calculate this by considering the probability that the ray bounces the way it does (for each bounce) - the 'transition probability'.
+The colour the ray will have at that step is just a deterministic function of theta and details of the way the ray is bouncing.
+
+This means that comparing theta that differ even slightly in material colors will likely result in one value appearing completely impossible.
+In general, we can expect that the parameter space will not be particularly amenable to the RASCAL/SCANDAL forms since they rely on local changes not affecting the joint scores/ratios much.
 
 ## Reproducing ML models and adaptation for ray tracing
 Todo `@Hina`.
