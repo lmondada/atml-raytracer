@@ -2,7 +2,7 @@ from datetime import datetime
 import progressbar
 
 # save to `img_folder`
-run_id = "depth_555_noMC_64"
+run_id = "testing"
 from pathlib import Path
 img_folder = Path.cwd() / "refractive_spheres" /run_id
 img_folder.mkdir(parents=True, exist_ok=True)
@@ -135,7 +135,7 @@ def render_image(refrac: float = 1.5):
             center=vec3(400.5, 100, -70),
             radius=100,
             shadow=False,
-            max_ray_depth=5,
+            max_ray_depth=3,
             # mc=True,
         ),
         importance_sampled=True,
@@ -147,7 +147,7 @@ def render_image(refrac: float = 1.5):
             center=vec3(180.5, 100, -140),
             radius=100,
             shadow=False,
-            max_ray_depth=5,
+            max_ray_depth=3,
             # mc=True,
         ),
         importance_sampled=True,
@@ -158,15 +158,15 @@ def render_image(refrac: float = 1.5):
             center=vec3(350.5, 160, -300),
             radius=140,
             shadow=False,
-            max_ray_depth=5,
+            max_ray_depth=3,
             # mc=True,
         ),
         importance_sampled=True,
     )
 
     # Render
-    img = Sc.render(samples_per_pixel=4, progress_bar=False)#, batch_size=4)
-    return img
+    img, gold_bars = Sc.render(samples_per_pixel=1, progress_bar=False)#, batch_size=4)
+    return img, gold_bars
 
 
 if __name__ == "__main__":
