@@ -152,7 +152,7 @@ class RaytracerSimulator(PyroSimulator):
         purity = inputs
         self._set_scene(purity)
 
-        ray = self.all_rays[self.current_pixel]
+        ray = self.all_rays.extract(torch.arange(len(self.all_rays)) == self.current_pixel)
         out_ray = self.scene.render_single_ray(ray)
 
         return out_ray.color

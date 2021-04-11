@@ -11,7 +11,7 @@ from raytracer.utils import colour_functions as cf
 # theta_ref = torch.tensor(5000*[[0.7]])
 
 purity_ref = torch.tensor(0.75)
-height = width = 12
+height = width = 64
 
 samples_per_pixel = 5
 
