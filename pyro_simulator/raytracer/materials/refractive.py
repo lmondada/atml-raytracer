@@ -1,6 +1,7 @@
 from math import pi
 import torch
 import torch.nn.functional as F
+import pyro.distributions as distr
 
 from . import Material
 from ..utils.constants import UPWARDS
@@ -58,84 +59,6 @@ class Refractive(Material):
             n1 = ray.n
             n2 = torch.where((hit.orientation == UPWARDS).reshape(-1, 1), self.n, scene.n)
 
-            def get_fresnel(n2):
-                # compute complete fresnel term
-                cosθt = torch.sqrt(1.0 - (n1 / n2) ** 2 * (1.0 - cosθi ** 2))
-                r_per = (n1 * cosθi - n2 * cosθt) / (n1 * cosθi + n2 * cosθt)
-                r_par = -1.0 * (n1 * cosθt - n2 * cosθi) / (n1 * cosθt + n2 * cosθi)
-                F = (r_per.abs() ** 2 + r_par.abs() ** 2) / 2.0
-                return F
-
-            F_coeff = get_fresnel(n2).mean(dim=1)
-
-            # compute reflection
-            reflected_ray_dir = F.normalize(ray.dir - N * 2.0 * torch.sum(ray.dir*N, dim=1, keepdim=True), dim=-1)
-            reflected_ray_deps = ray.ray_index.reshape((ray.length, 1))
-
-            # Compute ray directions and probabilities
-            pdf = normal_pdf(reflected_ray_dir, 1 - self.purity)
-
-            sampled_ray_dir = pdf.generate()
-            log_p_offset = ray.log_p_offset + F_coeff
-#             log_PDF_val = pdf.log_value(sampled_ray_dir)
-#             log_PDF_val_ref = pdf_ref.log_value(sampled_ray_dir)
-
-#             np.seterr(divide="ignore")  # ignore log(0) computations
-#             new_log_p_z = ray.log_p_z + log_PDF_val + np.log(F.x)
-#             new_log_p_z_ref = ray.log_p_z_ref + log_PDF_val_ref + np.log(F_ref.x)
-#             np.seterr(divide="warn")  # unset warning ignore
-
-            ray_reflect, max_index = get_raycolor(
-                Ray(
-                    pixel_index=ray.pixel_index,
-                    ray_index=ray.ray_index,
-                    ray_dependencies=torch.cat(
-                        (ray.ray_dependencies, reflected_ray_deps), dim=-1
-                    ),
-                    origin=nudged,
-                    dir=sampled_ray_dir,
-                    depth=ray.depth + 1,
-                    n=ray.n,
-                    log_p_offset=log_p_offset,
-                    # log_trans_probs=new_log_p_z,
-                    # log_trans_probs_ref=new_log_p_z_ref,
-                    color=ray.color,
-                    reflections=ray.reflections + 1,
-                    transmissions=ray.transmissions,
-                    diffuse_reflections=ray.diffuse_reflections,
-                ),
-                scene,
-                max_index,
-            )
-
-            # Update F to account for any extra rays picked up
-            reflect_deps = ray_reflect.ray_dependencies[:, -1]
-            ray_reflect.ray_dependencies = ray_reflect.ray_dependencies[:, :-1]
-
-            # want ray.index(pos) for pos in reflect_deps
-            reflect_indexing_order = torch.tensor([
-                # indices in original ray matching pos (there should be exactly 1):
-                torch.where(ray.ray_index == pos)[0][0]
-                for pos in reflect_deps
-            ])
-
-#             F_reflect = F[reflect_indexing_order]
-# 
-#             color_reflect = (
-#                 color.repeat(ray_reflect.color.shape()[0], 1)
-#                 + ray_reflect.color * F_reflect
-#             )
-            color_reflect = ray_reflect.color
-            # color_reflect = color.repeat(ray_reflect.color.shape()[0]) + ray_reflect.color
-#             color_ref_reflect = (
-#                 color.repeat(ray_reflect.color.shape()[0], 1)
-#                 + ray_reflect.color * F_ref_reflect
-#             )
-            # color_ref_reflect = color.repeat(ray_reflect.color.shape()[0]) + ray_reflect.color
-
-            # compute refraction rays
-            # Spectrum dispersion is not implemented.
-            # We approximate refraction direction averaging index of refraction of each wavelength
             def get_non_tir(n2):
                 n1_div_n2 = torch.real(n1) / torch.real(n2)
                 n1_div_n2_aver = n1_div_n2.mean(dim=1, keepdim=True)
@@ -149,8 +72,97 @@ class Refractive(Material):
                 return (sin2θt <= 1.0).squeeze(), new_ray_dir
 
             non_TiR, refracted_ray_dir = get_non_tir(n2)
+            reflected_ray_dir = F.normalize(ray.dir - N * 2.0 * torch.sum(ray.dir*N, dim=1, keepdim=True), dim=-1)
+
+            def get_fresnel(n2):
+                # compute complete fresnel term
+                cosθt = torch.sqrt(1.0 - (n1 / n2) ** 2 * (1.0 - cosθi ** 2))
+                r_per = (n1 * cosθi - n2 * cosθt) / (n1 * cosθi + n2 * cosθt)
+                r_par = -1.0 * (n1 * cosθt - n2 * cosθi) / (n1 * cosθt + n2 * cosθi)
+                F = (r_per.abs() ** 2 + r_par.abs() ** 2) / 2.0
+                return F
+
+            F_coeff = get_fresnel(n2).mean(dim=1).squeeze()
+
+            # somehow F_coeff has fucked up values sometimes
+            if not non_TiR.squeeze() or torch.isnan(F_coeff) or F_coeff > 1:
+                is_reflected = True
+            else:
+                is_reflected = distr.Bernoulli(probs=F_coeff)
+
+            if is_reflected:
+                # compute reflection
+                reflected_ray_deps = ray.ray_index.reshape((ray.length, 1))
+
+                # Compute ray directions and probabilities
+                pdf = normal_pdf(reflected_ray_dir, 1 - self.purity)
+
+                sampled_ray_dir = pdf.generate()
+                log_p_offset = ray.log_p_offset + F_coeff
+#             log_PDF_val = pdf.log_value(sampled_ray_dir)
+#             log_PDF_val_ref = pdf_ref.log_value(sampled_ray_dir)
+
+#             np.seterr(divide="ignore")  # ignore log(0) computations
+#             new_log_p_z = ray.log_p_z + log_PDF_val + np.log(F.x)
+#             new_log_p_z_ref = ray.log_p_z_ref + log_PDF_val_ref + np.log(F_ref.x)
+#             np.seterr(divide="warn")  # unset warning ignore
+
+                ray_reflect, max_index = get_raycolor(
+                    Ray(
+                        pixel_index=ray.pixel_index,
+                        ray_index=ray.ray_index,
+                        ray_dependencies=torch.cat(
+                            (ray.ray_dependencies, reflected_ray_deps), dim=-1
+                        ),
+                        origin=nudged,
+                        dir=sampled_ray_dir,
+                        depth=ray.depth + 1,
+                        n=ray.n,
+                        log_p_offset=log_p_offset,
+                        # log_trans_probs=new_log_p_z,
+                        # log_trans_probs_ref=new_log_p_z_ref,
+                        color=ray.color,
+                        reflections=ray.reflections + 1,
+                        transmissions=ray.transmissions,
+                        diffuse_reflections=ray.diffuse_reflections,
+                    ),
+                    scene,
+                    max_index,
+                )
+
+                # Update F to account for any extra rays picked up
+                reflect_deps = ray_reflect.ray_dependencies[:, -1]
+                ray_reflect.ray_dependencies = ray_reflect.ray_dependencies[:, :-1]
+
+                # want ray.index(pos) for pos in reflect_deps
+                reflect_indexing_order = torch.tensor([
+                    # indices in original ray matching pos (there should be exactly 1):
+                    torch.where(ray.ray_index == pos)[0][0]
+                    for pos in reflect_deps
+                ])
+
+#             F_reflect = F[reflect_indexing_order]
+# 
+#             color_reflect = (
+#                 color.repeat(ray_reflect.color.shape()[0], 1)
+#                 + ray_reflect.color * F_reflect
+#             )
+                color_reflect = ray_reflect.color
+                ray_out = ray_reflect
+            # color_reflect = color.repeat(ray_reflect.color.shape()[0]) + ray_reflect.color
+#             color_ref_reflect = (
+#                 color.repeat(ray_reflect.color.shape()[0], 1)
+#                 + ray_reflect.color * F_ref_reflect
+#             )
+            # color_ref_reflect = color.repeat(ray_reflect.color.shape()[0]) + ray_reflect.color
+
+            # compute refraction rays
+            # Spectrum dispersion is not implemented.
+            # We approximate refraction direction averaging index of refraction of each wavelength
+
             # non_TiR_ref, refracted_ray_dir_ref = get_non_tir(n2_ref)
-            if torch.any(non_TiR):
+            else:
+                # refraction
                 nudged = hit.point - N * 0.000001  # nudged for refraction
                 T_coeff = 1.0 - F_coeff
                 # T_ref = 1.0 - F_ref
@@ -237,29 +249,24 @@ class Refractive(Material):
 #                 color = torch.cat(color_reflect, color_refract)
                 # color_ref = color_ref_reflect.append(color_ref_refract)
 
-                ray_out = ray_reflect.combine(ray_refract)
-
-            else:  # not TIR
-#                 color = color_reflect
-                # color_ref = color_ref_reflect
-                ray_out = ray_reflect
+                ray_out = ray_refract
 
             # absorption:
             # approximation using wavelength for red = 630 nm, green 550 nm, blue 475 nm
-            full_indexing_order = torch.cat((reflect_indexing_order, refract_indexing_order))
-            hit_distance_repeated = torch.tensor(
-                [hit.distance[pos] for pos in full_indexing_order]
-            )
-            ray_n_repeated = n1[full_indexing_order]
+#             full_indexing_order = torch.cat((reflect_indexing_order, refract_indexing_order))
+#             hit_distance_repeated = torch.tensor(
+#                 [hit.distance[pos] for pos in full_indexing_order]
+#             )
+#             ray_n_repeated = n1[full_indexing_order]
 
             ambient_factor = torch.exp(
                 -2.0
-                * ray_n_repeated.imag
+                * n1.imag
                 * 2.0
                 * pi
                 / torch.tensor([630, 550, 475])
                 * 1e9
-                * hit_distance_repeated.reshape(-1, 1)
+                * hit.distance.reshape(-1, 1)
             )
             ray_out.color *= ambient_factor
             # color_ref = color_ref * ambient_factor

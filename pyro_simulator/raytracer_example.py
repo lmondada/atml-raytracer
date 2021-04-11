@@ -1,6 +1,8 @@
 import torch
 import pandas as pd
 from PIL import Image
+import progressbar
+import time
 
 from simulators import RaytracerSimulator
 from raytracer.utils import colour_functions as cf
@@ -9,54 +11,71 @@ from raytracer.utils import colour_functions as cf
 # theta_ref = torch.tensor(5000*[[0.7]])
 
 purity_ref = torch.tensor(0.75)
+height = width = 12
 
+samples_per_pixel = 5
 
-simulator = RaytracerSimulator(samples_per_pixel=3)
-
-#simulator = Simulator(sensitivities=True)
-# output = simulator(theta)
-
-
-# print('Trace nodes =', simulator.trace(theta).nodes)
-#
 def get_rays(purity):
-    color, indices, log_p_offset, joint_score, joint_log_ratio = simulator.augmented_data(purity, purity, purity_ref)
+    print("Rendering...")
+    all_colors = torch.tensor([]).reshape(0, 3)
+    all_pixel_indices = []
+    all_joint_scores = []
+    all_joint_log_ratios = []
 
-    print('color = ', color)
-    print('indices = ', indices)
-    print('log_p_offset = ', log_p_offset)
-    print('joint_score = ',joint_score)
-    print('joint_log_ratio= ',joint_log_ratio)
-    print('---'*5)
+    simulator = RaytracerSimulator(height=height, width=width)
+    n_pixels = len(simulator.all_rays)
 
-    pd.DataFrame(data={
-        'color': color,
-        'pixel_index': indices,
-        'joint_score': joint_score,
-        'joint_log_ratio': joint_log_ratio
-    })
+    bar = progressbar.ProgressBar(maxval=samples_per_pixel * n_pixels)
 
-# plot image
 
-# Aggregate the colours per pixel
-    color_RGBlinear = torch.stack([
-        color[indices == i].mean(dim=0) # this should take log_p_offset into account
-        for i in torch.arange(torch.min(indices), torch.max(indices) + 1)
-    ])
-# gamma correction
-    color_corrected = cf.sRGB_linear_to_sRGB(color_RGBlinear)
+    bar.start()
+    t0 = time.time()
+    try:
+        for j in range(samples_per_pixel):
+            for i in  range(n_pixels):
+                simulator.set_pixel(i)
+                color, joint_score, joint_log_ratio = simulator.augmented_data(purity, purity, purity_ref)
+                # save the data
+                all_colors = torch.cat((all_colors, color))
+                all_pixel_indices.append(i)
+                all_joint_scores.append(joint_score)
+                all_joint_log_ratios.append(joint_log_ratio)
+                # all_log_p_offsets = torch.cat((all_log_p_offsets, rays.log_p_offset))
+                bar.update(n_pixels * j + i)
+    finally:
+        bar.finish()
+        t1 = time.time()
+        print(f'Took {t1-t0}s')
+        print('---'*5)
 
-    img_RGB = (255 * torch.clip(color_corrected, 0., 1.)).reshape(
-            128, 128, 3
-    ).type(torch.uint8)
-    im = Image.merge("RGB", [
-        Image.fromarray(img_RGB[..., i].numpy(), "L") for i in range(3)
-    ])
-    im.save("result.png")
-    im.show()
+        data = pd.DataFrame(data={
+            'color': all_colors,
+            'pixel_index': all_pixel_indices,
+            'joint_score': all_joint_scores,
+            'joint_log_ratio': all_joint_log_ratios
+        })
+        data.to_csv('saved.csv')
+
+
+        # Aggregate the colours per pixel
+        color_RGBlinear = torch.stack([
+            all_colors[torch.tensor(all_pixel_indices) == i].mean(dim=0)
+            for i in torch.arange(min(all_pixel_indices), max(all_pixel_indices) + 1)
+        ])
+        # gamma correction
+        color_corrected = cf.sRGB_linear_to_sRGB(color_RGBlinear)
+
+        img_RGB = (255 * torch.clip(color_corrected, 0., 1.)).reshape(
+                width, height, 3
+        ).type(torch.uint8)
+        im = Image.merge("RGB", [
+            Image.fromarray(img_RGB[..., i].numpy(), "L") for i in range(3)
+        ])
+        im.save("result.png")
+        im.show()
 
 if __name__ == '__main__':
-    get_rays(torch.tensor(0.9))
+    get_rays(torch.tensor(0.8))
 ## x, joint_score, joint_log_ratio = simulator.augmented_data(theta,None, None)
 
 

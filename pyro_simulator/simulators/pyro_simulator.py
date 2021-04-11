@@ -40,14 +40,11 @@ class PyroSimulator(Simulator):
 
         trace = self.trace(inputs)
 
-        x = self._calculate_x(trace)
-        colors = x[:, :3]
-        indices = x[:, 3]
-        log_p_offset = x[:, 4]
+        color = self._calculate_x(trace)
         joint_score = self._calculate_joint_score(trace, inputs)
         joint_log_likelihood_ratio = self._calculate_joint_log_likelihood_ratio(trace, inputs_num, inputs_den)
 
-        return colors, indices, log_p_offset, joint_score, joint_log_likelihood_ratio
+        return color, joint_score, joint_log_likelihood_ratio
 
     def _replayed_trace(self, original_trace, inputs):
         if inputs is None:

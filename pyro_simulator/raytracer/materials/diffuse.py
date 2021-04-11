@@ -27,7 +27,7 @@ class Diffuse(Material):
 #         elif isinstance(diff_color_ref, texture):
 #             self.diff_texture_ref = diff_color_ref  # Colour of reference material
 
-        self.diffuse_rays = diffuse_rays  # Number of rays to average over
+        self.diffuse_rays = 1# diffuse_rays  # Number of rays to average over
         # Number of bounces on diffuse surfaces to compute
         self.max_diffuse_reflections = 2
         # How much of the ambient colour leaks into this object

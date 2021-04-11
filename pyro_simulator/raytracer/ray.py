@@ -94,17 +94,17 @@ class Ray:
 
     def __getitem__(self, ind):
         return Ray(
-            self.pixel_index[ind],
-            self.ray_index[ind],
-            self.ray_dependencies[ind],
-            self.origin[ind],
-            self.dir[ind],
+            self.pixel_index[ind].unsqueeze(0),
+            self.ray_index[ind].unsqueeze(0),
+            self.ray_dependencies[ind].unsqueeze(0),
+            self.origin[ind].unsqueeze(0),
+            self.dir[ind].unsqueeze(0),
             self.depth,
-            self.n[ind],
-            self.log_p_offset[ind],
+            self.n[ind].unsqueeze(0),
+            self.log_p_offset[ind].unsqueeze(0),
             # self.log_p_z[ind],
             # self.log_p_z_ref[ind],
-            self.color[ind],
+            self.color[ind].unsqueeze(0),
             self.reflections,
             self.transmissions,
             self.diffuse_reflections,
@@ -290,9 +290,9 @@ def get_raycolor(ray, scene, max_index=0):
             else:
                 full_hit_check = hit_check
 
-            ray_out.place(full_hit_check, sub_rays[original_mask])
+            ray_out.place(full_hit_check, sub_rays.extract(original_mask))
             # Then add the rest to the end
-            ray_out = ray_out.combine(sub_rays[~original_mask])
+            ray_out = ray_out.combine(sub_rays.extract(~original_mask))
 
             # update max index if necessary
             max_index = max(max_index, max(sub_rays.ray_index))

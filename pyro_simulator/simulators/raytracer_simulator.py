@@ -27,16 +27,21 @@ class RaytracerSimulator(PyroSimulator):
     start_pos = starting position (default = n_nails / 2)
     """
 
-    def __init__(self, samples_per_pixel=8):
+    def __init__(self, width=128, height=128):
         super(RaytracerSimulator, self).__init__()
 
-        self.samples_per_pixel = samples_per_pixel
+        self.width = width
+        self.height = height
+
+        # fake scene to set rays once and for all
+        self._set_scene(0.)
+        self.all_rays = self.scene.camera.get_ray(self.scene.n)
 
     def _set_scene(self, purity):
         self.scene = Scene(ambient_color=torch.zeros(3))
         self.scene.add_Camera(
-            screen_width=128,
-            screen_height=128,
+            screen_width=self.width,
+            screen_height=self.height,
             look_from=torch.tensor([40., 400., 300.]),
             look_at=torch.tensor([500., 0., -500.]),
             focal_distance=1.0,
@@ -140,17 +145,17 @@ class RaytracerSimulator(PyroSimulator):
             importance_sampled=True,
         )
 
+    def set_pixel(self, i):
+        self.current_pixel = i
+
     def forward(self, inputs):
         purity = inputs
-
         self._set_scene(purity)
-        all_colors, all_pixel_indices, all_log_p_offsets = self.scene.render(
-            samples_per_pixel=self.samples_per_pixel,
-            progress_bar=True
-        )
 
-        outputs = torch.cat((all_colors, all_pixel_indices.reshape(-1, 1), all_log_p_offsets.reshape(-1, 1)), dim=1)
-        return outputs
+        ray = self.all_rays[self.current_pixel]
+        out_ray = self.scene.render_single_ray(ray)
+
+        return out_ray.color
 
         # Define a pyro distribution
         # distribution_u = pyro.distributions.Uniform(0, 1).expand([num_samples])
