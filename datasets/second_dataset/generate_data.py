@@ -9,9 +9,9 @@ img_folder = data_folder / "sampl_images"
 img_folder.mkdir(parents=True, exist_ok=True)
 
 # make sure we can import sightpy
-# (this has to be run from the /data folder)
+# (this has to be run from the dataset/second_dataset folder)
 import sys
-sys.path.insert(1, '../../Python-Raytracer/sightpy')
+sys.path.insert(1, '../../raytracer')
 from sightpy import *
 import numpy as np
 

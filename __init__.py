@@ -1,1 +1,0 @@
-from .sightpy import *

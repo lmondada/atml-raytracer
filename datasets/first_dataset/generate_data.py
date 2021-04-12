@@ -1,12 +1,14 @@
 # save to `data_folder`
 from pathlib import Path
+
 data_folder = Path.cwd() / "data"
 data_folder.mkdir(parents=True, exist_ok=True)
 
 # make sure we can import sightpy
 # (this has to be run from the /data folder)
 import sys
-sys.path.insert(1, '../../sightpy')
+
+sys.path.insert(1, "../../raytracer")
 from sightpy import *
 
 
@@ -23,10 +25,16 @@ def get_all_rays(purity, data_folder):
     )
 
     # define materials to use
-    gray_diffuse = Diffuse(diff_color=rgb(.43, .43, .43), diff_color_ref=rgb(.43, .43, .43))
-    white_diffuse = Diffuse(diff_color=rgb(.73, .73, .73), diff_color_ref=rgb(.73, .73, .73))
-    emissive_white = Emissive(color=rgb(.9, .9, .9))
-    glass = Refractive(n=vec3(1.5 + 0j, 1.5 + 0j, 1.5 + 0j), purity=purity, purity_ref=0.75)
+    gray_diffuse = Diffuse(
+        diff_color=rgb(0.43, 0.43, 0.43), diff_color_ref=rgb(0.43, 0.43, 0.43)
+    )
+    white_diffuse = Diffuse(
+        diff_color=rgb(0.73, 0.73, 0.73), diff_color_ref=rgb(0.73, 0.73, 0.73)
+    )
+    emissive_white = Emissive(color=rgb(0.9, 0.9, 0.9))
+    glass = Refractive(
+        n=vec3(1.5 + 0j, 1.5 + 0j, 1.5 + 0j), purity=purity, purity_ref=0.75
+    )
 
     # this is the light
     Sc.add(
@@ -144,18 +152,23 @@ def get_all_rays(purity, data_folder):
     # )
 
     # Render
-    img, gold_bars = Sc.render(samples_per_pixel=32, progress_bar=True, save_csv=data_folder / 'all_rays.csv')
-    with open(data_folder / 'scores.csv', 'w', newline='') as csvfile:
-        fieldnames = ['joint score', 'reference joint score', 'joint likelihood ratio']
+    img, gold_bars = Sc.render(
+        samples_per_pixel=32, progress_bar=True, save_csv=data_folder / "all_rays.csv"
+    )
+    with open(data_folder / "scores.csv", "w", newline="") as csvfile:
+        fieldnames = ["joint score", "reference joint score", "joint likelihood ratio"]
         writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
-        writer.writerow({
-            'joint score': gold_bars[0],
-            'reference joint score': gold_bars[1],
-            'joint likelihood ratio': gold_bars[2]
-        })
+        writer.writerow(
+            {
+                "joint score": gold_bars[0],
+                "reference joint score": gold_bars[1],
+                "joint likelihood ratio": gold_bars[2],
+            }
+        )
 
     img.save(data_folder / "result.png")
     img.show()
+
 
 if __name__ == "__main__":
     for purity in np.arange(0.5, 0.99, 0.05):

@@ -4,13 +4,13 @@ import progressbar
 # save to `img_folder`
 run_id = "testing"
 from pathlib import Path
-img_folder = Path.cwd() / "refractive_spheres" /run_id
+img_folder = Path.cwd() / run_id
 img_folder.mkdir(parents=True, exist_ok=True)
 
 # make sure we can import sightpy
-# (this has to be run from the /data folder)
+# (this has to be run from the datasets/archive folder)
 import sys
-sys.path.insert(1, '../sightpy')
+sys.path.insert(1, '../../raytracer')
 from sightpy import *
 
 
