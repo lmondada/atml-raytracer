@@ -2,8 +2,11 @@
 
 # save to `data_folder`
 from pathlib import Path
-data_folder = Path.cwd() / "data"
+data_folder = Path.cwd() / "data_n_imag"
 data_folder.mkdir(parents=True, exist_ok=True)
+
+img_folder = data_folder / "sampl_images"
+img_folder.mkdir(parents=True, exist_ok=True)
 
 # make sure we can import sightpy
 # (this has to be run from the /data folder)
@@ -20,20 +23,21 @@ def get_all_rays(purity, n, data_folder):
         screen_width=50,
         screen_height=50,
         look_from=vec3(40, 400, 300),
-        look_at=vec3(500, 0, -500),
+        look_at=vec3(320.5, 100, -240),
         focal_distance=1.0,
-        field_of_view=30,
+        field_of_view=20,
     )
 
     # define materials to use
+    dark_gray_diffuse = Diffuse(diff_color=rgb(.23, .23, .23), diff_color_ref=rgb(.43, .43, .43))
     gray_diffuse = Diffuse(diff_color=rgb(.43, .43, .43), diff_color_ref=rgb(.43, .43, .43))
     white_diffuse = Diffuse(diff_color=rgb(.73, .73, .73), diff_color_ref=rgb(.73, .73, .73))
     emissive_white = Emissive(color=rgb(.9, .9, .9))
     glass = Refractive(
-        n=n,
-        n_ref=vec3(1.5 + 0j, 1.5 + 0j, 1.5 + 0j),
+        n=n, #  n_ref=n,
+        n_ref=vec3(1.5 + 0.0001j, 1.5 + 0.0001j, 1.5 + 0.0001j),
         purity=purity,
-        purity_ref=0.75,
+        purity_ref=0.9,
         theta_pos=(0, 1, 2),
     )
 
@@ -134,7 +138,7 @@ def get_all_rays(purity, n, data_folder):
             center=vec3(320.5, 100, -240),
             radius=100,
             shadow=False,
-            max_ray_depth=2,
+            max_ray_depth=4,
             # mc=True,
         ),
         importance_sampled=True,
@@ -165,14 +169,15 @@ def get_all_rays(purity, n, data_folder):
             'ray pixel index': gold_bars[4],
         })
 
-    img.save(data_folder / "result.png")
+    # img.save(data_folder / "result.png")
+    img.save(img_folder/ f"purity_{purity}_n_{n.x}.png")
     # img.show()
 
 if __name__ == "__main__":
-    for purity in np.arange(0.5, 0.99, 0.2):
-        for n_real in np.arange(1, 3.1, 1):
-            for n_imag in np.arange(0.00000001, 1.1, 0.5):
-                n = 1j*n_imag + n_real
-                current_folder = data_folder / f"purity_{purity:.2f}_n_{n}"
+    for purity in np.arange(0.9, 0.99, 1):
+        for n_real in np.arange(1.5, 3, 4.2):
+            for n_imag in np.arange(0, -8, -1):
+                n = (10.0 ** n_imag) * 1j + n_real
+                current_folder = data_folder / f"purity_{purity}_n_{n}"
                 current_folder.mkdir(parents=True, exist_ok=True)
-                get_all_rays(purity=purity, n=vec3(n, n, n), data_folder=data_folder / f"purity_{purity:.2f}_n_{n}")
+                get_all_rays(purity=purity, n=vec3(n, n, n), data_folder=data_folder / f"purity_{purity}_n_{n}")
