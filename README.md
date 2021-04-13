@@ -1,5 +1,5 @@
-# Accelerating Ray Tracing with Bayesian Inference
-Mining Gold by viewing Ray Tracing as a Simulation
+# Coating Light Rays in Gold
+Accelerating Ray Tracing with Bayesian Inference
 
 This repository contains the source code used for the reproducibility challenge
 of the _Advanced Topics in Machine Learning_ lecture, University of Oxford, Hilary Term 2021.
