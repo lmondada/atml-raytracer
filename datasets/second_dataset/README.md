@@ -3,6 +3,12 @@
 This folder contains the code to generate the final dataset produced
 and used in the benchmarks in the report.
 
+### Downloading and reproducing the dataset
+The dataset is available for download [here](https://github.com/lmondada/atml-raytracer/releases/download/v2/all_rays.csv).
+To reproduce the dataset, use this repo at the following
+[[tagged commit](https://github.com/lmondada/atml-raytracer/tree/v2)] (Release tag `second_dataset`).
+
+
 ### Data generation
 The `generate_data.py` script will run the raytracer for a simple scene with a
 transparent refractive sphere in its middle, for different

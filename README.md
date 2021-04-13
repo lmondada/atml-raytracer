@@ -29,6 +29,7 @@ Two datasets were used, `first_dataset` and `second_dataset`.
  computations of the joint score, making some of the models described in [1] intractable.
  - [`second_dataset`](datasets/second_dataset) contains rays from 50x50 images of the same 3D scene, with purity of the sphere material fixed at `0.9` with varying refractive index between `0.1 + 0j` and `2.4 + 0j`. This dataset contains
  joint scores and joint likelihood ratios of each ray.
+
  To each dataset, there is a corresponding [tagged release](https://github.com/lmondada/atml-raytracer/releases)
  version of this repo that can be used to reproduce the results.
  The generated datasets are also attached to each release and can be downloaded.
